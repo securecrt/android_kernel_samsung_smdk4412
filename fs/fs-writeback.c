@@ -636,8 +636,21 @@ static inline bool over_bground_thresh(void)
 
 	global_dirty_limits(&background_thresh, &dirty_thresh);
 
-	return (global_page_state(NR_FILE_DIRTY) +
-		global_page_state(NR_UNSTABLE_NFS) > background_thresh);
+	if (bdi_stat(bdi, BDI_RECLAIMABLE) >
+				bdi_dirty_limit(bdi, background_thresh))
+		return true;
+
+	return false;
+}
+
+/*
+ * Called under wb->list_lock. If there are multiple wb per bdi,
+ * only the flusher working on the first wb should do it.
+ */
+static void wb_update_bandwidth(struct bdi_writeback *wb,
+				unsigned long start_time)
+{
+	__bdi_update_bandwidth(wb->bdi, 0, 0, 0, 0, 0, start_time);
 }
 
 /*
