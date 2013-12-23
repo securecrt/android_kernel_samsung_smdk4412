@@ -48,7 +48,7 @@
  */
 #define DEBUG 0
 
-#define CPUS_AVAILABLE		num_possible_cpus()
+#define CPUS_AVAILABLE		2
 /*
  * SAMPLING_PERIODS * MIN_SAMPLING_RATE is the minimum
  * load history which will be averaged
