@@ -40,8 +40,7 @@ struct wb_writeback_work {
 	unsigned int for_kupdate:1;
 	unsigned int range_cyclic:1;
 	unsigned int for_background:1;
-	unsigned int for_sync:1;	/* sync(2) WB_SYNC_ALL writeback */
-	enum wb_reason reason;		/* why was writeback initiated? */
+	unsigned int for_sync:1;  /* sync(2) WB_SYNC_ALL writeback */
 
 	struct list_head list;		/* pending work list */
 	struct completion *done;	/* set if the caller waits */
@@ -392,10 +391,9 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 
 	/*
 	 * Make sure to wait on the data before writing out the metadata.
-	 * This is important for filesystems that modify metadata on data
 	 * I/O completion. We don't do it for sync(2) writeback because it has a
-	 * separate, external IO completion path and ->sync_fs for guaranteeing
-	 * inode metadata is written back correctly.
+     * separate, external IO completion path and ->sync_fs for guaranteeing
+     * inode metadata is written back correctly.
 	 */
 	if (wbc->sync_mode == WB_SYNC_ALL && !wbc->for_sync) {
 		int err = filemap_fdatawait(mapping);
@@ -513,20 +511,6 @@ static bool pin_sb_for_writeback(struct super_block *sb)
 static int writeback_sb_inodes(struct super_block *sb, struct bdi_writeback *wb,
 		struct writeback_control *wbc, bool only_this_sb)
 {
-	struct writeback_control wbc = {
-		.sync_mode		= work->sync_mode,
-		.tagged_writepages	= work->tagged_writepages,
-		.for_kupdate		= work->for_kupdate,
-		.for_background		= work->for_background,
-		.for_sync		= work->for_sync,
-		.range_cyclic		= work->range_cyclic,
-		.range_start		= 0,
-		.range_end		= LLONG_MAX,
-	};
-	unsigned long start_time = jiffies;
-	long write_chunk;
-	long wrote = 0;  /* count both pages and inodes */
-
 	while (!list_empty(&wb->b_io)) {
 		long pages_skipped;
 		struct inode *inode = wb_inode(wb->b_io.prev);
@@ -654,21 +638,8 @@ static inline bool over_bground_thresh(void)
 
 	global_dirty_limits(&background_thresh, &dirty_thresh);
 
-	if (bdi_stat(bdi, BDI_RECLAIMABLE) >
-				bdi_dirty_limit(bdi, background_thresh))
-		return true;
-
-	return false;
-}
-
-/*
- * Called under wb->list_lock. If there are multiple wb per bdi,
- * only the flusher working on the first wb should do it.
- */
-static void wb_update_bandwidth(struct bdi_writeback *wb,
-				unsigned long start_time)
-{
-	__bdi_update_bandwidth(wb->bdi, 0, 0, 0, 0, 0, start_time);
+	return (global_page_state(NR_FILE_DIRTY) +
+		global_page_state(NR_UNSTABLE_NFS) > background_thresh);
 }
 
 /*
@@ -695,6 +666,7 @@ static long wb_writeback(struct bdi_writeback *wb,
 		.older_than_this	= NULL,
 		.for_kupdate		= work->for_kupdate,
 		.for_background		= work->for_background,
+		.for_sync           = work->for_sync,
 		.range_cyclic		= work->range_cyclic,
 	};
 	unsigned long oldest_jif;
@@ -995,7 +967,7 @@ void wakeup_flusher_threads(long nr_pages)
 	struct backing_dev_info *bdi;
 
 	if (!nr_pages)
-		nr_pages = get_nr_dirty_pages();
+     nr_pages = get_nr_dirty_pages();
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
@@ -1309,8 +1281,7 @@ void sync_inodes_sb(struct super_block *sb)
 		.nr_pages	= LONG_MAX,
 		.range_cyclic	= 0,
 		.done		= &done,
-		.reason		= WB_REASON_SYNC,
-		.for_sync	= 1,
+		.for_sync   = 1,
 	};
 
 	WARN_ON(!rwsem_is_locked(&sb->s_umount));

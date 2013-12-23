@@ -3666,7 +3666,6 @@ err:
 	console_unlock();
 	return retval;
 }
-EXPORT_SYMBOL(unregister_con_driver);
 
 /*
  *	If we support more console drivers, this function is used
