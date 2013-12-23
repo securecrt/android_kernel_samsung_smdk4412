@@ -125,14 +125,100 @@ static const struct i2c_device_id sec_touchkey_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, sec_touchkey_id);
 
+static void init_hw(void);
+static int i2c_touchkey_probe(struct i2c_client *client,
+			      const struct i2c_device_id *id);
+
 extern int get_touchkey_firmware(char *version);
 static int touchkey_led_status;
 static int touchled_cmd_reversed;
 
+struct i2c_driver touchkey_i2c_driver = {
+	.driver = {
+		   .name = "sec_touchkey_driver",
+		   },
+	.id_table = sec_touchkey_id,
+	.probe = i2c_touchkey_probe,
+};
+
 static int touchkey_debug_count;
 static char touchkey_debug[104];
+static int touch_version;
+static int module_version;
+#ifdef CONFIG_TARGET_LOCALE_NA
+static int store_module_version;
+#endif
 
-#ifdef LED_LDO_WITH_REGULATOR
+static int touchkey_update_status;
+
+int touchkey_led_ldo_on(bool on)
+{
+	struct regulator *regulator;
+
+#if defined(CONFIG_MACH_S2PLUS)
+	if (on) {
+		gpio_direction_output(GPIO_3_TOUCH_EN, 1);
+	} else {
+		gpio_direction_output(GPIO_3_TOUCH_EN, 0);
+	}
+#else
+	if (on) {
+		regulator = regulator_get(NULL, "touch_led");
+		if (IS_ERR(regulator))
+			return 0;
+		regulator_enable(regulator);
+		regulator_put(regulator);
+	} else {
+		regulator = regulator_get(NULL, "touch_led");
+		if (IS_ERR(regulator))
+			return 0;
+		if (regulator_is_enabled(regulator))
+			regulator_force_disable(regulator);
+		regulator_put(regulator);
+	}
+#endif
+	return 0;
+}
+
+int touchkey_ldo_on(bool on)
+{
+	struct regulator *regulator;
+
+#if defined(CONFIG_MACH_S2PLUS)
+	if (on) {
+		regulator = regulator_get(NULL, "3_touch_1.8v");
+		if (IS_ERR(regulator))
+			return 0;
+		regulator_enable(regulator);
+		regulator_put(regulator);
+	} else {
+		regulator = regulator_get(NULL, "3_touch_1.8v");
+		if (IS_ERR(regulator))
+			return 0;
+		if (regulator_is_enabled(regulator))
+			regulator_force_disable(regulator);
+		regulator_put(regulator);
+	}
+#else
+	if (on) {
+		regulator = regulator_get(NULL, "touch");
+		if (IS_ERR(regulator))
+			return 0;
+		regulator_enable(regulator);
+		regulator_put(regulator);
+	} else {
+		regulator = regulator_get(NULL, "touch");
+		if (IS_ERR(regulator))
+			return 0;
+		if (regulator_is_enabled(regulator))
+			regulator_force_disable(regulator);
+		regulator_put(regulator);
+	}
+#endif
+
+	return 1;
+}
+
 static void change_touch_key_led_voltage(int vol_mv)
 {
 	struct regulator *tled_regulator;
@@ -145,6 +231,44 @@ static void change_touch_key_led_voltage(int vol_mv)
 	}
 	regulator_set_voltage(tled_regulator, vol_mv * 1000, vol_mv * 1000);
 	regulator_put(tled_regulator);
+}
+
+struct regulator {
+        struct device *dev;
+        struct list_head list;
+        int uA_load;
+        int min_uV;
+        int max_uV;
+        char *supply_name;
+        struct device_attribute dev_attr;
+        struct regulator_dev *rdev;
+};
+
+void set_touch_constraints(bool blnstatus)
+{
+  struct regulator *r;
+
+  if(!blnww && blnstatus) return;
+  r = regulator_get(NULL, "touch_led");
+  r->rdev->constraints->state_mem.enabled = blnstatus;
+  r->rdev->constraints->state_mem.disabled = !blnstatus;
+  r = regulator_get(NULL, "touch");
+  r->rdev->constraints->state_mem.enabled = blnstatus;
+  r->rdev->constraints->state_mem.disabled = !blnstatus;
+}
+
+int update_touchkey_brightness(int level)
+{
+  if(dyn_brightness)
+  {
+    printk("Changing touchkey brightness %d\n", level);
+    touchkey_voltage = 2700 + ((level * 24) / 500)*50;
+    change_touch_key_led_voltage(touchkey_voltage);
+  }
+}
+
+static ssize_t brightness_control_read( struct device *dev, struct device_attribute *attr, char *buf ){
+  return sprintf(buf,"%u\n", touchkey_voltage);
 }
 
 static ssize_t brightness_control(struct device *dev,
@@ -1020,21 +1144,21 @@ static ssize_t touch_update_write(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t size)
 {
-	struct touchkey_i2c *tkey_i2c = dev_get_drvdata(dev);
 #ifdef CONFIG_TARGET_LOCALE_NA
-	if (tkey_i2c->module_ver < 8) {
+	if (store_module_version < 8) {
 		printk(KERN_DEBUG
 		       "[TouchKey] Skipping f/w update : module_version =%d\n",
-		       tkey_i2c->module_ver);
-		tkey_i2c->update_status = TK_UPDATE_PASS;
+		       store_module_version);
+		touchkey_update_status = 0;
 		return 1;
 	} else {
 #endif				/* CONFIG_TARGET_LOCALE_NA */
 		printk(KERN_DEBUG "[TouchKey] touchkey firmware update\n");
 
 		if (*buf == 'S') {
-			disable_irq(tkey_i2c->irq);
-			schedule_work(&tkey_i2c->update_work);
+			disable_irq(IRQ_TOUCH_INT);
+			INIT_WORK(&touch_update_work, touchkey_update_func);
+			queue_work(touchkey_wq, &touch_update_work);
 		}
 		return size;
 #ifdef CONFIG_TARGET_LOCALE_NA
@@ -1310,9 +1434,8 @@ static ssize_t touch_sensitivity_control(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t size)
 {
-	struct touchkey_i2c *tkey_i2c = dev_get_drvdata(dev);
 	unsigned char data = 0x40;
-	i2c_touchkey_write(tkey_i2c->client, &data, 1);
+	i2c_touchkey_write(&data, 1);
 	return size;
 }
 
