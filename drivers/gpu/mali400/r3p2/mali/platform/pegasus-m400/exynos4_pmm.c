@@ -1090,7 +1090,6 @@ static _mali_osk_errcode_t enable_mali_clocks(void)
 
 	if (atomic_read(&clk_active) == 0) {
 		err = clk_enable(mali_clock);
-		mali_restore_vpll_mode();
 		MALI_DEBUG_PRINT(3,("enable_mali_clocks mali_clock %p error %d \n", mali_clock, err));
 		atomic_set(&clk_active, 1);
 		gpu_power_state = 1;
@@ -1127,7 +1126,6 @@ static _mali_osk_errcode_t enable_mali_clocks(void)
 
 static _mali_osk_errcode_t disable_mali_clocks(void)
 {
-	mali_force_mpll();
 	if (atomic_read(&clk_active) == 1) {
 		clk_disable(mali_clock);
 		atomic_set(&clk_active, 0);
@@ -1254,6 +1252,7 @@ _mali_osk_errcode_t mali_platform_power_mode_change(struct device *dev, mali_pow
 						mali_gpu_clk, mali_gpu_vol/1000, 0, 0, 0);
 
 #endif
+				mali_restore_vpll_mode();
 				bPoweroff=0;
 			}
 			break;
@@ -1264,6 +1263,7 @@ _mali_osk_errcode_t mali_platform_power_mode_change(struct device *dev, mali_pow
 						"MALI_POWER_MODE_DEEP_SLEEP", bPoweroff ? "already off" : "powering off"));
 			if (bPoweroff == 0)
 			{
+				mali_force_mpll();
 				disable_mali_clocks();
 #if defined(CONFIG_MALI400_PROFILING)
 				_mali_osk_profiling_add_event(MALI_PROFILING_EVENT_TYPE_SINGLE |
@@ -1389,7 +1389,7 @@ int mali_voltage_lock_init(void)
 	MALI_SUCCESS;
 }
 
-int mali_use_vpll;
+extern int mali_use_vpll;
 int mali_use_vpll_save;
 void mali_restore_vpll_mode(void)
 
