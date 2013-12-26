@@ -81,7 +81,7 @@ typedef struct mali_dvfs_statusTag{
 mali_dvfs_status_t maliDvfsStatus;
 int mali_dvfs_control;
 
-int step0_clk = 100;
+int step0_clk = 108;
 int step0_vol = 850000;
 int step1_clk = 160;
 int step1_vol = 900000;
@@ -102,7 +102,7 @@ typedef struct mali_runtime_resumeTag{
 	unsigned int step;
 }mali_runtime_resume_table;
 
-mali_runtime_resume_table mali_runtime_resume = {266, 950000, 1};
+mali_runtime_resume_table mali_runtime_resume = {108, 850000, 1};
 
 /* dvfs table */
 mali_dvfs_table mali_dvfs[MALI_DVFS_STEPS]={
@@ -113,10 +113,10 @@ mali_dvfs_table mali_dvfs[MALI_DVFS_STEPS]={
 			/* step 3 */{440  ,1000000	,1025000   ,85   , 90},
 			/* step 4 */{533  ,1000000	,1075000   ,95   ,100} };
 #else
-			/* step 0 */{100  ,1000000	, 850000   ,85   , 90},
+			/* step 0 */{108  ,1000000	, 850000   ,85   , 90},
 			/* step 1 */{160  ,1000000	, 900000   ,60   , 90},
-			/* step 1 */{200  ,1000000	, 950000   ,75   , 90},
-			/* step 1 */{267  ,1000000	, 950000   ,70   ,100}};
+			/* step 2 */{200  ,1000000	, 950000   ,75   , 90},
+			/* step 3 */{267  ,1000000	, 950000   ,70   ,100}};
 #endif
 
 #ifdef EXYNOS4_ASV_ENABLED
@@ -240,9 +240,9 @@ int mali_gpu_clk = 440;
 int mali_gpu_vol = 1025000;
 #else
 /* Orion */
-static const mali_bool bis_vpll = MALI_FALSE;
-int mali_gpu_clk = 267;
-int mali_gpu_vol = 950000;
+static const mali_bool bis_vpll = MALI_TRUE;
+int mali_gpu_clk = 108;
+int mali_gpu_vol = 850000;
 #endif
 
 static unsigned int GPU_MHZ	= 1000000;
@@ -1081,6 +1081,8 @@ static mali_bool deinit_mali_clock(void)
 	return MALI_TRUE;
 }
 
+void mali_force_mpll(void);
+void mali_restore_vpll_mode(void);
 
 static _mali_osk_errcode_t enable_mali_clocks(void)
 {
@@ -1088,6 +1090,7 @@ static _mali_osk_errcode_t enable_mali_clocks(void)
 
 	if (atomic_read(&clk_active) == 0) {
 		err = clk_enable(mali_clock);
+		mali_restore_vpll_mode();
 		MALI_DEBUG_PRINT(3,("enable_mali_clocks mali_clock %p error %d \n", mali_clock, err));
 		atomic_set(&clk_active, 1);
 		gpu_power_state = 1;
@@ -1124,6 +1127,7 @@ static _mali_osk_errcode_t enable_mali_clocks(void)
 
 static _mali_osk_errcode_t disable_mali_clocks(void)
 {
+	mali_force_mpll();
 	if (atomic_read(&clk_active) == 1) {
 		clk_disable(mali_clock);
 		atomic_set(&clk_active, 0);
@@ -1383,6 +1387,22 @@ int mali_voltage_lock_init(void)
 	mali_vol_lock_flag = MALI_TRUE;
 
 	MALI_SUCCESS;
+}
+
+int mali_use_vpll;
+int mali_use_vpll_save;
+void mali_restore_vpll_mode(void)
+
+{
+  mali_use_vpll = mali_use_vpll_save;
+}
+
+void mali_force_mpll(void)
+{
+  mali_use_vpll_save = mali_use_vpll;
+  mali_use_vpll = false;
+  mali_regulator_set_voltage(mali_gpu_vol, mali_gpu_vol);
+  mali_clk_set_rate(mali_gpu_clk, GPU_MHZ);
 }
 
 int mali_vol_get_from_table(int vol)

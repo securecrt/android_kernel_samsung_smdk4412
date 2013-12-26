@@ -13,6 +13,9 @@
  * Defines the OS abstraction layer for the kernel device driver (OSK)
  */
 
+#define mali_restore_vpll_mode new_mali_restore_vpll_mode
+#define mali_force_mpll new_mali_force_mpll
+
 #ifndef __MALI_OSK_H__
 #define __MALI_OSK_H__
 
