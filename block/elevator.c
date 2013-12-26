@@ -36,6 +36,7 @@
 #include <linux/hash.h>
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
+#include <linux/ratelimit.h>
 
 #include <trace/events/block.h>
 

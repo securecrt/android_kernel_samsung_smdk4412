@@ -152,6 +152,7 @@ enum rq_flag_bits {
 	__REQ_MIXED_MERGE,	/* merge of different types, fail separately */
 	__REQ_SECURE,		/* secure discard (used with __REQ_DISCARD) */
 	__REQ_NR_BITS,		/* stops here */
+	__REQ_PM,           /* runtime pm request */
 };
 
 #define REQ_WRITE		(1 << __REQ_WRITE)
@@ -191,5 +192,6 @@ enum rq_flag_bits {
 #define REQ_IO_STAT		(1 << __REQ_IO_STAT)
 #define REQ_MIXED_MERGE		(1 << __REQ_MIXED_MERGE)
 #define REQ_SECURE		(1 << __REQ_SECURE)
+#define REQ_PM          (1 << __REQ_PM)
 
 #endif /* __LINUX_BLK_TYPES_H */
