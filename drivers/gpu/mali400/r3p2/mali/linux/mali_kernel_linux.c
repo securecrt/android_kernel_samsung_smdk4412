@@ -140,12 +140,6 @@ extern int step3_vol;
 module_param(step3_vol, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP| S_IROTH); /* rw-rw-r-- */
 MODULE_PARM_DESC(step3_vol, "Mali Current step3_vol");
 
-#ifdef CONFIG_CPU_EXYNOS4210
-const int mali_use_vpll = 0;
-module_param(mali_use_vpll, int, S_IRUSR | S_IWUSR | S_IWGRP | S_IRGRP | S_IROTH); /* rw--rw--r-- */
-MODULE_PARM_DESC(mali_use_vpll, "Mali Use VPLL for Clock");
-#endif
-
 static char mali_dev_name[] = "mali"; /* should be const, but the functions we call requires non-cost */
 
 /* This driver only supports one Mali device, and this variable stores this single platform device */
