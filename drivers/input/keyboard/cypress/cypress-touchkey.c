@@ -1024,7 +1024,7 @@ static int sec_touchkey_late_resume(struct early_suspend *h)
 			del_timer(&notification_timer);
 		}
 		if (breathing) stop_breathing();
-		
+
 		/* we were using a wakelock, unlock it */
         if( wake_lock_active(&bln_wake_lock) ){
             printk(KERN_DEBUG "[TouchKey] touchkey clear wake_lock\n");
@@ -1081,7 +1081,7 @@ static int sec_touchkey_late_resume(struct early_suspend *h)
 
 static void touchkey_activate(void){
 
-        if( !blnww && !wake_lock_active(&bln_wake_lock) ){ 
+        if( !blnww && !wake_lock_active(&bln_wake_lock) ){
             printk(KERN_DEBUG "[TouchKey] touchkey get wake_lock\n");
             wake_lock(&bln_wake_lock);
         }
@@ -1430,7 +1430,7 @@ static void breathe(struct work_struct *notification_off_work)
 			breathing_step_idx++;
 			if( breathing_step_idx >= breathing_step_count ) breathing_step_idx = 0;
 			data = breathing_steps[breathing_step_idx].start;
-		}	
+		}
 	}
 
 	change_touch_key_led_voltage(data);
@@ -1542,7 +1542,7 @@ static ssize_t dyn_brightness_read( struct device *dev, struct device_attribute 
 static ssize_t dyn_brightness_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size ){
 	unsigned int data;
 	int old_dyn = dyn_brightness;
-	
+
 	if(sscanf(buf,"%u\n", &data ) == 1 ){
 		if( data == 1 ) dyn_brightness = 1;
 		if( data == 0 ) dyn_brightness = 0;
@@ -1751,7 +1751,7 @@ static int i2c_touchkey_probe(struct i2c_client *client,
         }else{
             if( sysfs_create_group( &bln_device.this_device->kobj, &bln_notification_group) < 0){
                 printk(KERN_ERR "[BLN] sysfs create group failed.\n");
-            } 
+            }
         }
 
         /* BLN early suspend */
@@ -1764,7 +1764,7 @@ static int i2c_touchkey_probe(struct i2c_client *client,
 	}else{
 		if( sysfs_create_group( &led_device.this_device->kobj, &led_notification_group) < 0){
 			printk(KERN_ERR "[LED] sysfs create group failed.\n");
-		} 
+		}
 	}
 
 	/* Setup the timer for the timeouts */
