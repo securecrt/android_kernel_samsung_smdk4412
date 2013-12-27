@@ -13,7 +13,6 @@ GENTLE_FAIR_SLEEPERS=off
 ARCH_POWER=on
 gps=0
 selinux=0
-scrollcache=on
 navigationbar=off
 min_bl=80
 min_gamma=0

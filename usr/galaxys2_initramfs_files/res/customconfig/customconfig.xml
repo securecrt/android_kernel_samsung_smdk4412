@@ -66,7 +66,6 @@
              <spinnerItem name="Permissive" value="0"/>
              <spinnerItem name="Enforce" value="1"/>
        </spinner>
-<checkbox description="Enable or Disable Scrolling Cache (you should leave this on for smoothness, needs restart)" name="Scrolling Cache" action="scrollcache" label="Scrolling Cache"/>
 <checkbox description="Enable or Disable Navigation Bar (needs restart)" name="Navigation Bar" action="navigationbar" label="Navigation Bar"/>
 </settingsPane>
 </settingsTab>
